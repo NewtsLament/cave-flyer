@@ -8,7 +8,8 @@ import sdl2.ext
 BLACK = sdl2.ext.Color(0, 0, 0)
 WHITE = sdl2.ext.Color(255, 255, 255)
 INITIAL_VELOCITY = 0
-INITIAL_GRAVITY = 0.7
+INITIAL_GRAVITY = 9.82 
+USER_ACCEL = -30
 
 # Instead of chopping away at a more C like invocation of SDL, we use a component based system.
 
@@ -20,26 +21,32 @@ class MovementSystem(sdl2.ext.Applicator):
         self.miny = miny
         self.maxx = maxx
         self.maxy = maxy
-        self.__oldtime = None
+        self.__oldtime = time.perf_counter()
         self.__newtime = time.perf_counter()
+        self.__tstart = 0
         self.__gravity = INITIAL_GRAVITY
 
     def __deltaTime(self):
         '''Updates this instances time variable,
         and calculates the difference.'''
+        print("Tsart: " + str(self.__tstart))
         self.__oldtime = self.__newtime
         self.__newtime = time.perf_counter()
-        return self.__newtime - self.__oldtime
+        temp = self.__newtime - self.__oldtime
+        self.__tstart += temp
+        return temp
 
     def process(self, world, componentsets):
+        delta = self.__deltaTime()
         for position, acceleration, velocity, sprite in componentsets:
-            delta = self.__deltaTime()
             x = position.px
             y = position.py
             vx = velocity.vx
             vy = velocity.vy
             ax = acceleration.ax
             ay = acceleration.ay
+            kax = acceleration.kax
+            kay = acceleration.kay
             lx1 = self.minx
             ly1 = self.miny
             lx2 = self.maxx
@@ -47,15 +54,14 @@ class MovementSystem(sdl2.ext.Applicator):
 
             swidth, sheight = sprite.size
             
-            lax = sum(ax)
-            lay = sum(ay)
-            print("X acc.: " + str(x))
-            print("Y acc.: " + str(ay))
-            velocity.vx = vx+lax*delta
-            velocity.vy = vy+lay*delta
+            lax = sum(ax) + kax
+            lay = sum(ay) + kay
+            vx = vx+lax*delta
+            vy = vy+lay*delta
             position.px = x+vx*delta
             position.py = y+vy*delta
-            
+            velocity.vx = vx
+            velocity.vy = vy
             
             position.px = max(self.minx, position.px)
             position.py = max(self.miny, position.py)
@@ -113,6 +119,8 @@ class Acceleration(object):
         super(Acceleration, self).__init__()
         self.ax = []
         self.ay = []
+        self.kax = 0
+        self.kay = 0
 
 class Ball(sdl2.ext.Entity):
     def __init__(self, world, sprite, posx=0, posy=0):
@@ -164,7 +172,10 @@ def run():
                 break
             if event.type == sdl2.SDL_KEYDOWN:
                 if event.key.keysym.sym == sdl2.SDLK_UP:
-                    ball.acceleration.ay = ball.acceleration.ay + [-1.0]
+                    ball.acceleration.kay = USER_ACCEL
+            elif event.type == sdl2.SDL_KEYUP:
+                if event.key.keysym.sym == sdl2.SDLK_UP:
+                    ball.acceleration.kay = 0
         sdl2.SDL_Delay(10)
         world.process()
 
