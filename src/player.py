@@ -10,6 +10,7 @@ WHITE = sdl2.ext.Color(255, 255, 255)
 INITIAL_VELOCITY = 0
 INITIAL_GRAVITY = 0.7
 
+# Instead of chopping away at a more C like invocation of SDL, we use a component based system.
 
 class MovementSystem(sdl2.ext.Applicator):
     def __init__(self, minx, miny, maxx, maxy):
@@ -46,8 +47,10 @@ class MovementSystem(sdl2.ext.Applicator):
 
             swidth, sheight = sprite.size
             
-            lax = ax
-            lay = ay
+            lax = sum(ax)
+            lay = sum(ay)
+            print("X acc.: " + str(x))
+            print("Y acc.: " + str(ay))
             velocity.vx = vx+lax*delta
             velocity.vy = vy+lay*delta
             position.px = x+vx*delta
@@ -66,6 +69,10 @@ class MovementSystem(sdl2.ext.Applicator):
 
             sprite.x = int(round(position.px))
             sprite.y = int(round(position.py))
+
+            # Reset acceleration list
+            acceleration.ax = []
+            acceleration.ay = [INITIAL_GRAVITY]
 
 
 class SoftwareRenderSystem(sdl2.ext.SoftwareSpriteRenderSystem):
@@ -104,8 +111,8 @@ class Velocity(object):
 class Acceleration(object):
     def __init__(self):
         super(Acceleration, self).__init__()
-        self.ax = 0.0
-        self.ay = 0.0
+        self.ax = []
+        self.ay = []
 
 class Ball(sdl2.ext.Entity):
     def __init__(self, world, sprite, posx=0, posy=0):
@@ -129,9 +136,6 @@ def run():
         print("Using software rendering")
         factory = sdl2.ext.SpriteFactory(sdl2.ext.SOFTWARE)
 
-    # Create the paddles - we want white ones. To keep it easy enough for us,
-    # we create a set of surfaces that can be used for Texture- and
-    # Software-based sprites.
     sp_ball = factory.from_color(WHITE, size=(20, 20))
 
     world = sdl2.ext.World()
@@ -150,7 +154,7 @@ def run():
     ball.position.px = 390
     ball.position.py = 290
     ball.velocity.vy = INITIAL_VELOCITY
-    ball.acceleration.ay = INITIAL_GRAVITY
+    ball.acceleration.ay = ball.acceleration.ay + [INITIAL_GRAVITY]
 
     running = True
     while running:
@@ -160,12 +164,7 @@ def run():
                 break
             if event.type == sdl2.SDL_KEYDOWN:
                 if event.key.keysym.sym == sdl2.SDLK_UP:
-                    player1.velocity.vy = -PADDLE_SPEED
-                elif event.key.keysym.sym == sdl2.SDLK_DOWN:
-                    player1.velocity.vy = PADDLE_SPEED
-            elif event.type == sdl2.SDL_KEYUP:
-                if event.key.keysym.sym in (sdl2.SDLK_UP, sdl2.SDLK_DOWN):
-                    player1.velocity.vy = 0
+                    ball.acceleration.ay = ball.acceleration.ay + [-1.0]
         sdl2.SDL_Delay(10)
         world.process()
 
