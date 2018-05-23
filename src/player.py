@@ -16,7 +16,7 @@ USER_FORCE = -300 # Points in y-axis
 class MovementSystem(sdl2.ext.Applicator):
     def __init__(self, minx, miny, maxx, maxy):
         super(MovementSystem, self).__init__()
-        self.componenttypes = Position, Acceleration, Velocity, sdl2.ext.Sprite
+        self.componenttypes = Position, Force, Acceleration, Velocity, sdl2.ext.Sprite
         self.minx = minx
         self.miny = miny
         self.maxx = maxx
@@ -38,7 +38,9 @@ class MovementSystem(sdl2.ext.Applicator):
 
     def process(self, world, componentsets):
         delta = self.__deltaTime()
-        for position, acceleration, velocity, sprite in componentsets:
+        for position, force, acceleration, velocity, sprite in componentsets:
+            fx = sum(force.fx) + force.kfx
+            fy = sum(force.fy) + force.kfy
             x = position.px
             y = position.py
             vx = velocity.vx
@@ -54,8 +56,8 @@ class MovementSystem(sdl2.ext.Applicator):
 
             swidth, sheight = sprite.size
             
-            lax = sum(ax) + kax
-            lay = sum(ay) + kay
+            lax = sum(ax) + kax + fx/force.mass
+            lay = sum(ay) + kay + fy/force.mass
             vx = vx+lax*delta
             vy = vy+lay*delta
             position.px = x+vx*delta
@@ -76,9 +78,11 @@ class MovementSystem(sdl2.ext.Applicator):
             sprite.x = int(round(position.px))
             sprite.y = int(round(position.py))
 
-            # Reset acceleration list
+            # Reset forces and acceleration
             acceleration.ax = []
             acceleration.ay = [INITIAL_GRAVITY]
+            force.fx = []
+            force.fy = []
 
 
 class SoftwareRenderSystem(sdl2.ext.SoftwareSpriteRenderSystem):
@@ -115,20 +119,29 @@ class Velocity(object):
         self.vy = 0.0
 
 class Acceleration(object):
-    def __init__(self,mass):
+    def __init__(self):
         super(Acceleration, self).__init__()
         self.ax = []
         self.ay = []
         self.kax = 0
         self.kay = 0
+
+class Force(object):
+    def __init__(self,mass):
+        super(Force, self).__init__()
         self.mass = mass # For force calculations.
+        self.fx = []
+        self.fy = []
+        self.kfx = 0
+        self.kfy = 0
 
 class Ball(sdl2.ext.Entity):
     def __init__(self, world, sprite, posx=0, posy=0, mass=10):
         self.sprite = sprite
         self.sprite.position = posx, posy
         self.velocity = Velocity()
-        self.acceleration = Acceleration(mass)
+        self.acceleration = Acceleration()
+        self.force = Force(mass)
         self.position = Position()
 
 
@@ -173,11 +186,10 @@ def run():
                 break
             if event.type == sdl2.SDL_KEYDOWN:
                 if event.key.keysym.sym == sdl2.SDLK_UP:
-                    ball.acceleration.kay = USER_FORCE/ball.acceleration.mass
-                    print(ball.acceleration.mass)
+                    ball.force.kfy = USER_FORCE
             elif event.type == sdl2.SDL_KEYUP:
                 if event.key.keysym.sym == sdl2.SDLK_UP:
-                    ball.acceleration.kay = 0
+                    ball.force.kfy = 0
         sdl2.SDL_Delay(10)
         world.process()
 
