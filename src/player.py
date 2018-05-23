@@ -9,7 +9,7 @@ BLACK = sdl2.ext.Color(0, 0, 0)
 WHITE = sdl2.ext.Color(255, 255, 255)
 INITIAL_VELOCITY = 0
 INITIAL_GRAVITY = 9.82 
-USER_ACCEL = -30
+USER_FORCE = -10 # Points in y-axis
 
 # Instead of chopping away at a more C like invocation of SDL, we use a component based system.
 
@@ -115,20 +115,22 @@ class Velocity(object):
         self.vy = 0.0
 
 class Acceleration(object):
-    def __init__(self):
+    def __init__(self,mass):
         super(Acceleration, self).__init__()
         self.ax = []
         self.ay = []
         self.kax = 0
         self.kay = 0
+        self.mass = mass # For force calculations.
 
 class Ball(sdl2.ext.Entity):
-    def __init__(self, world, sprite, posx=0, posy=0):
+    def __init__(self, world, sprite, posx=0, posy=0, mass=5):
         self.sprite = sprite
         self.sprite.position = posx, posy
         self.velocity = Velocity()
-        self.acceleration = Acceleration()
+        self.acceleration = Acceleration(mass)
         self.position = Position()
+        self.mass = mass
 
 
 def run():
