@@ -8,8 +8,12 @@ import sdl2.ext
 BLACK = sdl2.ext.Color(0, 0, 0)
 WHITE = sdl2.ext.Color(255, 255, 255)
 INITIAL_VELOCITY = 0
-INITIAL_GRAVITY = 9.82 
 USER_FORCE = -300 # Points in y-axis
+INITIAL_GRAVITY = 9.82
+WINDOW_SIZE = (800,600)
+HEIGHT = 20.0
+PPU = WINDOW_SIZE[1]/HEIGHT
+WIDTH = WINDOW_SIZE[0]/PPU
 
 # Instead of chopping away at a more C like invocation of SDL, we use a component based system.
 
@@ -29,7 +33,6 @@ class MovementSystem(sdl2.ext.Applicator):
     def __deltaTime(self):
         '''Updates this instances time variable,
         and calculates the difference.'''
-        print("Tsart: " + str(self.__tstart))
         self.__oldtime = self.__newtime
         self.__newtime = time.perf_counter()
         temp = self.__newtime - self.__oldtime
@@ -37,6 +40,9 @@ class MovementSystem(sdl2.ext.Applicator):
         return temp
 
     def process(self, world, componentsets):
+        print("PPU: " + str(PPU))
+        print("HEIGHT: " + str(HEIGHT))
+        print("WIDTH: " + str(WIDTH))
         delta = self.__deltaTime()
         for position, force, acceleration, velocity, sprite in componentsets:
             fx = sum(force.fx) + force.kfx
@@ -58,6 +64,11 @@ class MovementSystem(sdl2.ext.Applicator):
             
             lax = sum(ax) + kax + fx/force.mass
             lay = sum(ay) + kay + fy/force.mass
+
+            #Scale to fit actual world size
+            swidth = swidth/PPU
+            sheight = sheight/PPU
+
             vx = vx+lax*delta
             vy = vy+lay*delta
             position.px = x+vx*delta
@@ -65,18 +76,32 @@ class MovementSystem(sdl2.ext.Applicator):
             velocity.vx = vx
             velocity.vy = vy
             
-            position.px = max(self.minx, position.px)
-            position.py = max(self.miny, position.py)
+            # Reset acceleration list
+            acceleration.ax = []
+            acceleration.ay = [INITIAL_GRAVITY]
+
+            # Because of the acceleration parts, this no longer works.
+            #position.px = max(self.minx, position.px)
+            #position.py = max(self.miny, position.py)
+            if position.px < self.minx:
+                position.px = self.minx
+                velocity.vx = 0
+                # No constant acceleration in this axis
+            if position.py < self.miny:
+                position.py = self.miny
+                velocity.vy = 0
+            print("Position: " + str(position))
+
 
             pmaxx = position.px + swidth
             pmaxy = position.py + sheight
             if pmaxx > self.maxx:
                 position.px = self.maxx - swidth
+                velocity.vx = 0
             if pmaxy > self.maxy:
                 position.py = self.maxy - sheight
-
-            sprite.x = int(round(position.px))
-            sprite.y = int(round(position.py))
+                velocity.vy = 0
+                acceleration.ay.append(-INITIAL_GRAVITY)
 
             # Reset forces and acceleration
             acceleration.ax = []
@@ -84,6 +109,9 @@ class MovementSystem(sdl2.ext.Applicator):
             force.fx = []
             force.fy = []
 
+            sprite.x = int(round(position.px*PPU))
+            sprite.y = int(round(position.py*PPU))
+            print("Sprite: " + str(sprite.x) + ", " + str(sprite.y))
 
 class SoftwareRenderSystem(sdl2.ext.SoftwareSpriteRenderSystem):
     def __init__(self, window):
@@ -111,6 +139,8 @@ class Position(object):
         super(Position, self).__init__()
         self.px = 0.0
         self.py = 0.0
+    def __str__(self):
+        return "Position object, self.px: " + str(self.px) + ", self.py: " +  str(self.py) + " ."
 
 class Velocity(object):
     def __init__(self):
@@ -147,7 +177,7 @@ class Ball(sdl2.ext.Entity):
 
 def run():
     sdl2.ext.init()
-    window = sdl2.ext.Window("The Pong Game", size=(800, 600))
+    window = sdl2.ext.Window("The Pong Game", WINDOW_SIZE)
     window.show()
 
     if "-hardware" in sys.argv:
@@ -162,7 +192,7 @@ def run():
 
     world = sdl2.ext.World()
 
-    movement = MovementSystem(0, 0, 800, 600)
+    movement = MovementSystem(0, 0, WIDTH, HEIGHT)
 
     if factory.sprite_type == sdl2.ext.SOFTWARE:
         spriterenderer = SoftwareRenderSystem(window)
@@ -173,8 +203,8 @@ def run():
     world.add_system(spriterenderer)
 
     ball = Ball(world, sp_ball, 390, 290)
-    ball.position.px = 390
-    ball.position.py = 290
+    ball.position.px = WIDTH/2
+    ball.position.py = HEIGHT/2
     ball.velocity.vy = INITIAL_VELOCITY
     ball.acceleration.ay = ball.acceleration.ay + [INITIAL_GRAVITY]
 
