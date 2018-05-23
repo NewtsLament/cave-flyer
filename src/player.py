@@ -174,7 +174,7 @@ def run():
                 break
             if event.type == sdl2.SDL_KEYDOWN:
                 if event.key.keysym.sym == sdl2.SDLK_UP:
-                    ball.acceleration.kay = USER_ACCEL
+                    ball.acceleration.kay = USER_FORCE/ball.mass
             elif event.type == sdl2.SDL_KEYUP:
                 if event.key.keysym.sym == sdl2.SDLK_UP:
                     ball.acceleration.kay = 0
